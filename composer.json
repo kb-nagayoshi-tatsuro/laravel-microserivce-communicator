@@ -1,0 +1,46 @@
+{
+    "version": "1.0.0",
+    "name": "madmountainio/laravel-microservice-communicator",
+    "description": "Laravel package for handling microservice communication via Azure Service Bus REST API and Redis Streams",
+    "type": "library",
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0",
+        "illuminate/redis": "^11.0",
+        "guzzlehttp/guzzle": "^7.8"
+    },
+    "require-dev": {
+        "pestphp/pest": "^2.34",
+        "pestphp/pest-plugin-laravel": "^2.0",
+        "orchestra/testbench": "^9.0",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "MadMountainIo\\MicroserviceCommunicator\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MadMountainIo\\MicroserviceCommunicator\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "MadMountainIo\\MicroserviceCommunicator\\MicroserviceCommunicationServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
