@@ -101,7 +101,7 @@ class AzureServiceBusBroker implements MessageBrokerInterface
                     'headers' => $this->getHeaders()
                 ]
             );
-
+            
             if ($response->getStatusCode() !== 201) {
                 throw new BrokerException(
                     "Failed to publish message. Status code: {$response->getStatusCode()}"
@@ -130,6 +130,7 @@ class AzureServiceBusBroker implements MessageBrokerInterface
                 try {
                     $serviceBusMessage = new ServiceBusMessage(
                         $this->client,
+                        $this->getHeaders(),
                         $queueName,
                         $message['lockToken'],
                         $message['properties']['MessageId'],
@@ -198,54 +199,6 @@ class AzureServiceBusBroker implements MessageBrokerInterface
     public function getTokenExpiresAt(): int
     {
         return $this->tokenExpiresAt;
-    }
-
-    /**
-     * @throws BrokerException
-     */
-    private function processMessage(string $queueName, array $message, callable $callback): void
-    {
-        if (empty($message['lockToken'])) {
-            throw new BrokerException("Received message without lock token");
-        }
-
-        if (empty($message['properties']['MessageId'])) {
-            throw new BrokerException("Received message without MessageId");
-        }
-
-
-        try {
-            $callback($message['body']);
-            $this->completeMessage($queueName, $message['lockToken'], $message['properties']['MessageId']);
-        } catch (\Exception $e) {
-            $this->logger->error("Callback execution failed", [
-                'queue' => $queueName,
-                'error' => $e->getMessage(),
-                'messageId' => $message['properties']['MessageId'] ?? 'unknown'
-            ]);
-            throw new BrokerException("Callback execution failed: ".$e->getMessage());
-        }
-    }
-
-    /**
-     * @throws BrokerException
-     */
-    private function completeMessage(string $queueName, string $lockToken, string $messageId): void
-    {
-        try {
-            $response = $this->client->delete(
-                $this->buildUrl($queueName, "messages/{$messageId}/{$lockToken}"),
-                ['headers' => $this->getHeaders()]
-            );
-
-            if ($response->getStatusCode() !== 200) {
-                throw new BrokerException(
-                    "Failed to complete message. Status code: {$response->getStatusCode()}"
-                );
-            }
-        } catch (GuzzleException $e) {
-            throw new BrokerException("Failed to complete message: ".$e->getMessage());
-        }
     }
 
     private function buildUrl(string $queueName, string $path): string

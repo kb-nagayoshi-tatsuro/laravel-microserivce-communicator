@@ -10,6 +10,7 @@ use MadMountainIo\MicroserviceCommunicator\Exceptions\BrokerException;
 trait MessageActions
 {
     protected Client $client;
+    protected array $headers;
     protected string $queueName;
     protected string $lockToken;
     protected string $messageId;
@@ -26,6 +27,7 @@ trait MessageActions
         try {
             $response = $this->client->delete(
                 $this->buildUrl("messages/{$this->messageId}/{$this->lockToken}"),
+                ['headers' => $this->headers]
             );
 
             if ($response->getStatusCode() !== 200) {
@@ -63,7 +65,8 @@ trait MessageActions
                         ['MessageId' => $this->messageId],
                         $properties,
                         $reason ? ['AbandonReason' => $reason] : []
-                    )
+                    ),
+                    'headers' => $this->headers
                 ]
             );
 

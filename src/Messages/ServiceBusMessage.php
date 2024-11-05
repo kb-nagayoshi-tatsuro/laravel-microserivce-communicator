@@ -13,6 +13,7 @@ class ServiceBusMessage
 
     public function __construct(
         Client $client,
+        array $headers,
         string $queueName,
         string $lockToken,
         string $messageId,
@@ -21,6 +22,7 @@ class ServiceBusMessage
         mixed $logger
     ) {
         $this->client = $client;
+        $this->headers = $headers;
         $this->queueName = $queueName;
         $this->lockToken = $lockToken;
         $this->messageId = $messageId;
