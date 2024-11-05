@@ -21,6 +21,7 @@ class AzureServiceBusBroker implements MessageBrokerInterface
     private const EMPTY_QUEUE_DELAY = 1; // second
 
     private mixed $logger;
+    private int $tokenExpiresAt;
 
     /**
      * @throws BrokerException
@@ -44,7 +45,6 @@ class AzureServiceBusBroker implements MessageBrokerInterface
         $this->client = new Client([
             'base_uri' => rtrim($config['endpoint'], '/'),
             'timeout' => 30,
-            'headers' => $this->getHeaders()
         ]);
     }
 
@@ -74,6 +74,8 @@ class AzureServiceBusBroker implements MessageBrokerInterface
     private function generateSasToken(string $resourceUri, string $keyName, string $key): string
     {
         $expiry = time() + self::TOKEN_EXPIRY_TIME;
+        $this->setTokenExpiresAt($expiry);
+
         $stringToSign = urlencode($resourceUri)."\n".$expiry;
         $signature = base64_encode(hash_hmac('sha256', $stringToSign, $key, true));
 
@@ -96,6 +98,7 @@ class AzureServiceBusBroker implements MessageBrokerInterface
                 $this->buildUrl($queueName, 'messages'),
                 [
                     'json' => $message,
+                    'headers' => $this->getHeaders()
                 ]
             );
 
@@ -166,6 +169,7 @@ class AzureServiceBusBroker implements MessageBrokerInterface
         try {
             $response = $this->client->post(
                 $this->buildUrl($queueName, 'messages/head'),
+                ['headers' => $this->getHeaders()]
             );
 
             if ($response->getStatusCode() === 204) {
@@ -189,6 +193,11 @@ class AzureServiceBusBroker implements MessageBrokerInterface
         } catch (GuzzleException $e) {
             throw new BrokerException("Failed to receive message: ".$e->getMessage());
         }
+    }
+
+    public function getTokenExpiresAt(): int
+    {
+        return $this->tokenExpiresAt;
     }
 
     /**
@@ -246,6 +255,10 @@ class AzureServiceBusBroker implements MessageBrokerInterface
 
     private function getHeaders(): array
     {
+        if (time() > $this->getTokenExpiresAt()) {
+            $this->refreshSasToken();
+        }
+
         return [
             'Authorization' => $this->sasToken,
             'Content-Type' => 'application/json',
@@ -256,5 +269,10 @@ class AzureServiceBusBroker implements MessageBrokerInterface
     {
         $brokerPropertiesHeader = $response->getHeader('BrokerProperties')[0] ?? '{}';
         return json_decode($brokerPropertiesHeader, true) ?? [];
+    }
+
+    private function setTokenExpiresAt(int $expiry): void
+    {
+        $this->tokenExpiresAt = $expiry;
     }
 }
