@@ -141,6 +141,20 @@ class AzureServiceBusBroker implements MessageBrokerInterface
 
                     // Pass the ServiceBusMessage instance to the callback
                     $callback($serviceBusMessage);
+
+                    // Azure Service Bus キューに完了通知を行う
+                    try {
+                        $serviceBusMessage->complete();
+                        $this->logger->info("Message successfully completed and removed from queue.",[
+                            'messageId' => $serviceBusMessage->getMessageId()
+                        ]);
+                    } catch (\Exception $completeException) {
+                        $this->logger->error("Failed to explicitly complete message after callback: " . $completeException->getMessage(), [
+                            'messageId' => $serviceBusMessage->getMessageId(),
+                            'trace'     => $completeException->getTraceAsString()
+                        ]);
+                    }
+
                 } catch (\Exception $e) {
                     $this->logger->error("Error processing message", [
                         'queue' => $queueName,
@@ -148,6 +162,25 @@ class AzureServiceBusBroker implements MessageBrokerInterface
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
                     ]);
+
+                    // エラー発生時はメッセージを破棄（abandon）またはデッドレター（deadLetter）
+                    if ($serviceBusMessage && method_exists($serviceBusMessage, 'abandon')) {
+                        try {
+                            $serviceBusMessage->abandon();
+                            $this->logger->info("Message abandoned due to processing error.", [
+                                'messageId' => $serviceBusMessage->getMessageId()
+                            ]);
+                        } catch (\Throwable $abandonException) {
+                            $this->logger->error("Failed to abandon message after processing error: " . $abandonException->getMessage(), [
+                                'messageId' => $serviceBusMessage->getMessageId(),
+                                'trace'     => $abandonException->getTraceAsString()
+                            ]);
+                        }
+                    } else {
+                        $this->logger->warning("No abandon method available or unable to access. Message will be re-delivered after lock expires.", [
+                            'messageId' => $serviceBusMessage->getMessageId()
+                        ]);
+                    }
                 }
 
             } catch (\Exception $e) {
