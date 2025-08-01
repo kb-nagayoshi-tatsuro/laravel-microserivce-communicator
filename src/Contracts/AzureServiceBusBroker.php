@@ -122,6 +122,8 @@ class AzureServiceBusBroker implements MessageBrokerInterface
             try {
                 $message = $this->receiveMessage($queueName);
 
+                $this->logger->info("receiveMessage 完了", ['message' => $message]);
+
                 if ($message === null) {
                     sleep(self::EMPTY_QUEUE_DELAY);
                     continue;
@@ -141,6 +143,8 @@ class AzureServiceBusBroker implements MessageBrokerInterface
 
                     // Pass the ServiceBusMessage instance to the callback
                     $callback($serviceBusMessage);
+
+                    $this->logger->info("callback 完了");
 
                     // Azure Service Bus キューに完了通知を行う
                     try {
